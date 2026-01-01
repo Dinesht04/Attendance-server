@@ -1,0 +1,38 @@
+package data
+
+import (
+	"go.mongodb.org/mongo-driver/v2/bson"
+)
+
+type User struct {
+	ID       bson.ObjectID `json:"_id" bson:"_id"`
+	Name     string        `json:"name"`
+	Email    string        `json:"email"`
+	Password string        `json:"password"`
+	Role     string        `json:"role"`
+}
+
+type Class struct {
+	ID         bson.ObjectID   `json:"_id" bson:"_id"`
+	ClassName  string          `json:"classname"`
+	TeacherID  bson.ObjectID   `json:"teacher_id" bson:"teacher_id"`
+	StudentIDs []bson.ObjectID `json:"student_ids" bson:"student_ids"`
+}
+
+type Attendance struct {
+	ID        bson.ObjectID `json:"_id" bson:"_id"`
+	ClassID   bson.ObjectID `json:"class_id" bson:"class_id"`
+	StudentID bson.ObjectID `json:"student_id" bson:"student_id"`
+	Status    string        `json:"status"`
+}
+
+//validate Role -> teacher | student
+//validate Status -> present | absent
+
+type Session struct {
+	ClassID    bson.ObjectID
+	StartedAt  string
+	Attendance []AttendanceStatus
+}
+
+type AttendanceStatus map[string]string
