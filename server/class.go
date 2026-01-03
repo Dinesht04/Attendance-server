@@ -149,8 +149,78 @@ func AddStudent(db *mongo.Client) gin.HandlerFunc {
 
 func GetClass(db *mongo.Client) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		//extract class id
-		//search query db for teacher id and students id
-		//exreact the id from rquest and match
+		//step 1 auth
+		//extract class id from query params
+		//query the db for it
+		//check if id exist in teacher or student from the one in request
+		//#done in middleware
+
+		//step 2
+		//query the database for students which id are in the class
+
+		studentsIds, _ := c.Get("studentIds")
+
+		filter := bson.M{
+			"_ids": bson.M{
+				"$in": studentsIds,
+			},
+		}
+
+		cur, err := db.Database("attendance").Collection("users").Find(context.Background(), filter)
+		if err != nil {
+			c.JSON(http.StatusOK, gin.H{
+				"eror": "internal server error",
+			})
+			c.Abort()
+			util.PrintError(err, "db finding err")
+			return
+		}
+
+		Students := []data.User{}
+		if err := cur.All(context.Background(), &Students); err != nil {
+			c.JSON(http.StatusOK, gin.H{
+				"eror": "internal server error",
+			})
+			c.Abort()
+			util.PrintError(err, "cursor iteration err")
+			return
+
+		}
+
+		//step 3
+		//format the response
+		type Student struct {
+			ID    string `json:"_id"`
+			Name  string `json:"name"`
+			Email string `json:"email" `
+		}
+		type Response struct {
+			ID        string     `json:"_id"`
+			ClassName string     `json:"classname"`
+			TeacherID string     `json:"teacher_id" `
+			Students  []*Student `json:"studens" `
+		}
+
+		res := &Response{
+			ID:        c.GetString("classId"),
+			ClassName: c.GetString("className"),
+			TeacherID: c.GetString("teacherId"),
+		}
+
+		fmt.Println("iterating over cursor")
+		for i, v := range Students {
+			fmt.Println(i, v)
+			res.Students = append(res.Students, &Student{
+				ID:    v.ID.Hex(),
+				Name:  v.Name,
+				Email: v.Email,
+			})
+		}
+
+		c.JSON(http.StatusOK, gin.H{
+			"success": "true",
+			"data":    res,
+		})
+
 	}
 }

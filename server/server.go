@@ -1,11 +1,14 @@
 package server
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/dinesht04/ws-attendance/data"
+	"github.com/dinesht04/ws-attendance/util"
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
+	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 )
 
@@ -116,6 +119,81 @@ func StudentRoleAuth(c *gin.Context) {
 	}
 }
 
+func ClassBasedAuth(db *mongo.Client) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		classId, err := bson.ObjectIDFromHex(c.Param("id"))
+		if err != nil {
+			c.JSON(http.StatusOK, gin.H{
+				"eror": "internal server error",
+			})
+			c.Abort()
+			util.PrintError(err, "object id err")
+			return
+		}
+
+		Class := data.Class{}
+
+		filter := bson.M{"_id": classId}
+
+		err = db.Database("attendance").Collection("class").FindOne(c, filter).Decode(&Class)
+		if err == mongo.ErrNoDocuments {
+			fmt.Println("No document found matching the filter")
+		}
+
+		if err != nil {
+
+			c.JSON(http.StatusOK, gin.H{
+				"eror": "internal server error",
+			})
+			c.Abort()
+			util.PrintError(err, "db finding err")
+			return
+		}
+
+		c.Set("studentIds", Class.StudentIDs)
+		c.Set("classId", Class.ID.Hex())
+		c.Set("teacherId", Class.TeacherID.Hex())
+		c.Set("className", Class.ClassName)
+
+		userId, err := bson.ObjectIDFromHex(c.GetString("userId"))
+		if err != nil {
+			c.JSON(http.StatusOK, gin.H{
+				"eror": "internal server error",
+			})
+			c.Abort()
+			util.PrintError(err, "object id err")
+			return
+		}
+
+		if c.GetString("role") == "teacher" {
+
+			if userId.Hex() != Class.TeacherID.Hex() {
+				c.JSON(http.StatusOK, gin.H{
+					"auth err": "not your class bru",
+				})
+				c.Abort()
+				return
+			}
+			c.Next()
+		}
+
+		if c.GetString("role") == "student" {
+
+			for _, v := range Class.StudentIDs {
+				if userId == v {
+					c.Next()
+				}
+			}
+			c.JSON(http.StatusOK, gin.H{
+				"auth err": "not your class bru",
+			})
+			c.Abort()
+			return
+
+		}
+	}
+}
+
 // func StudentAuth(params string) gin.HandlerFunc {
 // 	// <---
 // 	// This is part one
@@ -159,7 +237,7 @@ func StartServer(db *mongo.Client) {
 		class := r.Group("/class")
 		class.POST("/", Auth(), TeacherRoleAuth(), CreateClass(db))
 		class.POST("/:id/add-student", Auth(), TeacherRoleAuth(), AddStudent(db))
-		class.GET("/:id", Auth())
+		class.GET("/:id/", Auth(), ClassBasedAuth(db), GetClass(db))
 		class.GET("/:id/my-attendance")
 	}
 
