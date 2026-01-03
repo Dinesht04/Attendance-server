@@ -106,19 +106,23 @@ func TeacherRoleAuth() gin.HandlerFunc {
 
 }
 
-func StudentRoleAuth(c *gin.Context) {
-	if c.GetString("role") == "student" {
-		c.Next()
-	} else {
-		c.Abort()
-		c.JSON(http.StatusOK, gin.H{
-			"auth error": "you are not a student? why are you as a teacher accessing it maaan",
-		})
-		return
+func StudentRoleAuth() gin.HandlerFunc {
+
+	return func(c *gin.Context) {
+		if c.GetString("role") == "student" {
+			c.Next()
+		} else {
+			c.Abort()
+			c.JSON(http.StatusOK, gin.H{
+				"auth error": "you are not a student? why are you as a teacher accessing it maaan",
+			})
+			return
+		}
 	}
+
 }
 
-func ClassBasedAuth(db *mongo.Client) gin.HandlerFunc {
+func ClassParamBasedAuth(db *mongo.Client) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		classId, err := bson.ObjectIDFromHex(c.Param("id"))
 		if err != nil {
@@ -171,20 +175,105 @@ func ClassBasedAuth(db *mongo.Client) gin.HandlerFunc {
 				return
 			}
 			c.Next()
-		}
-
-		if c.GetString("role") == "student" {
-
+		} else if c.GetString("role") == "student" {
+			verified := false
 			for _, v := range Class.StudentIDs {
 				if userId == v {
+					verified = true
 					c.Next()
 				}
 			}
+			if verified == false {
+				c.JSON(http.StatusOK, gin.H{
+					"auth err": "not your class bru",
+				})
+				c.Abort()
+				return
+			}
+
+		}
+	}
+}
+
+func ClassBodyBasedAuth(db *mongo.Client) gin.HandlerFunc {
+	return func(c *gin.Context) {
+
+		type StartReq struct {
+			ClassID string `json:"classId" binding:"required"`
+		}
+
+		req := StartReq{}
+		if err := c.ShouldBind(&req); err != nil {
+			util.InternalServerError(c, err, "binding err")
+			return
+		}
+
+		classId, err := bson.ObjectIDFromHex(req.ClassID)
+		if err != nil {
 			c.JSON(http.StatusOK, gin.H{
-				"auth err": "not your class bru",
+				"eror": "internal server error",
 			})
 			c.Abort()
+			util.PrintError(err, "object id err")
 			return
+		}
+
+		Class := data.Class{}
+
+		filter := bson.M{"_id": classId}
+
+		err = db.Database("attendance").Collection("class").FindOne(c, filter).Decode(&Class)
+
+		if err != nil {
+
+			c.JSON(http.StatusOK, gin.H{
+				"eror": "internal server error",
+			})
+			c.Abort()
+			util.PrintError(err, "db finding err")
+			return
+		}
+
+		c.Set("studentIds", Class.StudentIDs)
+		c.Set("classId", Class.ID)
+		c.Set("teacherId", Class.TeacherID.Hex())
+		c.Set("className", Class.ClassName)
+
+		userId, err := bson.ObjectIDFromHex(c.GetString("userId"))
+		if err != nil {
+			c.JSON(http.StatusOK, gin.H{
+				"eror": "internal server error",
+			})
+			c.Abort()
+			util.PrintError(err, "object id err")
+			return
+		}
+
+		if c.GetString("role") == "teacher" {
+
+			if userId.Hex() != Class.TeacherID.Hex() {
+				c.JSON(http.StatusOK, gin.H{
+					"auth err": "not your class bru",
+				})
+				c.Abort()
+				return
+			}
+			c.Next()
+		} else if c.GetString("role") == "student" {
+			verified := false
+			for _, v := range Class.StudentIDs {
+				if userId == v {
+					verified = true
+					c.Next()
+				}
+			}
+			if verified == false {
+				c.JSON(http.StatusOK, gin.H{
+					"auth err": "not your class bru",
+				})
+				c.Abort()
+				return
+			}
 
 		}
 	}
@@ -230,21 +319,21 @@ func StartServer(db *mongo.Client) {
 	}
 
 	{
-		class := r.Group("/class")
-		class.POST("/", Auth(), TeacherRoleAuth(), CreateClass(db))
-		class.POST("/:id/add-student", Auth(), TeacherRoleAuth(), AddStudent(db))
-		class.GET("/:id/", Auth(), ClassBasedAuth(db), GetClass(db))
-		class.GET("/:id/my-attendance")
+		class := r.Group("/class", Auth())
+		class.POST("/", TeacherRoleAuth(), CreateClass(db))
+		class.POST("/:id/add-student", TeacherRoleAuth(), AddStudent(db))
+		class.GET("/:id/", ClassParamBasedAuth(db), GetClass(db))
+		class.GET("/:id/my-attendance", StudentRoleAuth(), ClassParamBasedAuth(db), getMyAttendance(db))
 	}
 
 	{
-		students := r.Group("/students")
-		students.GET("/")
+		students := r.Group("/students", Auth())
+		students.GET("/", TeacherRoleAuth(), getStudents(db))
 	}
 
 	{
-		attendance := r.Group("/attendance")
-		attendance.POST("/start")
+		attendance := r.Group("/attendance", Auth())
+		attendance.POST("/start", TeacherRoleAuth(), ClassBodyBasedAuth(db), startAttendance(db))
 	}
 
 	r.Run()

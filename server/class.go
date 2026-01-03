@@ -2,7 +2,6 @@ package server
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 
 	"github.com/dinesht04/ws-attendance/data"
@@ -121,7 +120,6 @@ func AddStudent(db *mongo.Client) gin.HandlerFunc {
 				"auth error": "not your class",
 			})
 			c.Abort()
-			fmt.Println(result.TeacherID.String(), " != ", c.GetString("userId"))
 			return
 		}
 
@@ -187,22 +185,15 @@ func GetClass(db *mongo.Client) gin.HandlerFunc {
 			return
 
 		}
-		for _, result := range Students {
-			fmt.Println(result)
-		}
 
 		//step 3
 		//format the response
-		type Student struct {
-			ID    string `json:"_id"`
-			Name  string `json:"name"`
-			Email string `json:"email" `
-		}
+
 		type Response struct {
-			ID        string     `json:"_id"`
-			ClassName string     `json:"classname"`
-			TeacherID string     `json:"teacher_id" `
-			Students  []*Student `json:"studens" `
+			ID        string          `json:"_id"`
+			ClassName string          `json:"classname"`
+			TeacherID string          `json:"teacher_id" `
+			Students  []*data.Student `json:"studens" `
 		}
 
 		res := &Response{
@@ -211,10 +202,8 @@ func GetClass(db *mongo.Client) gin.HandlerFunc {
 			TeacherID: c.GetString("teacherId"),
 		}
 
-		fmt.Println("iterating over cursor")
-		for i, v := range Students {
-			fmt.Println(i, v)
-			res.Students = append(res.Students, &Student{
+		for _, v := range Students {
+			res.Students = append(res.Students, &data.Student{
 				ID:    v.ID.Hex(),
 				Name:  v.Name,
 				Email: v.Email,
