@@ -19,12 +19,7 @@ type Class struct {
 	StudentIDs []bson.ObjectID `json:"student_ids" bson:"student_ids"`
 }
 
-type Attendance struct {
-	ID        bson.ObjectID `json:"_id" bson:"_id"`
-	ClassID   bson.ObjectID `json:"class_id" bson:"class_id"`
-	StudentID bson.ObjectID `json:"student_id" bson:"student_id"`
-	Status    string        `json:"status"`
-}
+type Attendance map[bson.ObjectID]string
 
 //validate Role -> teacher | student
 //validate Status -> present | absent
@@ -32,7 +27,7 @@ type Attendance struct {
 type Session struct {
 	ClassID    bson.ObjectID
 	StartedAt  string
-	Attendance []AttendanceStatus
+	Attendance Attendance
 }
 
 type AttendanceStatus map[string]string

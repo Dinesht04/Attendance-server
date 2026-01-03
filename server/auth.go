@@ -2,7 +2,6 @@ package server
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 
 	"github.com/dinesht04/ws-attendance/data"
@@ -191,8 +190,6 @@ func HandleMe(db *mongo.Client) gin.HandlerFunc {
 			util.PrintError(err, "extracting claims error")
 			return
 		}
-
-		fmt.Println(claims)
 
 		userId, ok := claims["userId"].(string)
 		if !ok {

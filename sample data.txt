@@ -1,0 +1,20 @@
+teacher
+{
+  "name": "John Doe",
+  "email": "john@example.com",
+  "password": "securepassword123",
+  "role": "teacher"
+}
+token - eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoidGVhY2hlciIsInVzZXJJZCI6IjY5NTZkMmY2YTFkODA1N2M4NjViNzg0MSJ9.kobAbIixfdtJ90ss3lFtgNNaplpP_hHzUtqk9t_RcsA
+
+student
+{
+  "name": "Dinesh Tyagi",
+  "email": "dinesh@example.com",
+  "password": "password",
+  "role": "student"
+}
+id- 6957a85ac5856239427497af
+token - eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoic3R1ZGVudCIsInVzZXJJZCI6IjY5NTdhODVhYzU4NTYyMzk0Mjc0OTdhZiJ9.OIPOz1I5bsD2n4skQjqP9viOJVveLe6-5LVdeSKQ5DE
+
+class id - 69579daac5856239427497ae
