@@ -1,7 +1,6 @@
 package server
 
 import (
-	"fmt"
 	"net/http"
 
 	"github.com/dinesht04/ws-attendance/data"
@@ -136,9 +135,6 @@ func ClassBasedAuth(db *mongo.Client) gin.HandlerFunc {
 		filter := bson.M{"_id": classId}
 
 		err = db.Database("attendance").Collection("class").FindOne(c, filter).Decode(&Class)
-		if err == mongo.ErrNoDocuments {
-			fmt.Println("No document found matching the filter")
-		}
 
 		if err != nil {
 

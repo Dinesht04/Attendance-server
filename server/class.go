@@ -161,12 +161,13 @@ func GetClass(db *mongo.Client) gin.HandlerFunc {
 		studentsIds, _ := c.Get("studentIds")
 
 		filter := bson.M{
-			"_ids": bson.M{
+			"_id": bson.M{
 				"$in": studentsIds,
 			},
 		}
 
 		cur, err := db.Database("attendance").Collection("users").Find(context.Background(), filter)
+
 		if err != nil {
 			c.JSON(http.StatusOK, gin.H{
 				"eror": "internal server error",
@@ -185,6 +186,9 @@ func GetClass(db *mongo.Client) gin.HandlerFunc {
 			util.PrintError(err, "cursor iteration err")
 			return
 
+		}
+		for _, result := range Students {
+			fmt.Println(result)
 		}
 
 		//step 3
