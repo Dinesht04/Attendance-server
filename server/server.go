@@ -1,12 +1,15 @@
 package server
 
 import (
+	"fmt"
 	"net/http"
+	"sync"
 
 	"github.com/dinesht04/ws-attendance/data"
 	"github.com/dinesht04/ws-attendance/util"
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/gorilla/websocket"
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 )
@@ -14,6 +17,33 @@ import (
 // the auth flow should be -> req -> extract the token,
 // if invalid -> then send bad login response.
 // if valid -> add id and role to the context
+
+type ConnectionStruct struct {
+	authenticated bool
+	ws            *websocket.Conn
+}
+
+type OpenSocketsStruct struct {
+	sync.Mutex
+	list map[string]*ConnectionStruct
+}
+
+func (p *OpenSocketsStruct) Add(id string, ws *websocket.Conn) {
+	p.Lock()
+	defer p.Unlock()
+
+	p.list = map[string]*ConnectionStruct{}
+	p.list[id] = &ConnectionStruct{
+		authenticated: true,
+		ws:            ws,
+	}
+}
+
+func (p *OpenSocketsStruct) SendMessage() {
+	fmt.Println(p.list)
+}
+
+var SocketList OpenSocketsStruct
 
 func Auth() gin.HandlerFunc {
 	// <---
@@ -58,6 +88,59 @@ func Auth() gin.HandlerFunc {
 			return
 		}
 
+		role, ok := claims["role"].(string)
+		if !ok {
+			c.JSON(http.StatusAccepted, gin.H{
+				"status": "error while value validation",
+			})
+			c.Abort()
+			return
+		}
+		userId, ok := claims["userId"].(string)
+		if !ok {
+			c.JSON(http.StatusAccepted, gin.H{
+				"status": "error while value validation",
+			})
+			c.Abort()
+			return
+		}
+
+		if role == "student" || role == "teacher" {
+			c.Set("role", role)
+			c.Set("userId", userId)
+			c.Next()
+		} else {
+			c.JSON(http.StatusAccepted, gin.H{
+				"status": "auth err who r u br",
+			})
+			c.Abort()
+			return
+		}
+
+	}
+}
+
+func QueryParamsAuth() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		jwToken, exists := c.GetQuery("token")
+		if !exists {
+			util.AuthError(c, fmt.Errorf("JWT token not present"))
+			return
+		}
+
+		token, err := jwt.Parse(jwToken, func(t *jwt.Token) (any, error) {
+			return []byte(secret), nil
+		}, jwt.WithValidMethods([]string{jwt.SigningMethodHS256.Alg()}))
+		if err != nil {
+			util.InternalServerError(c, err, "token parse err")
+			return
+		}
+
+		claims, ok := token.Claims.(jwt.MapClaims)
+		if !ok {
+			util.InternalServerError(c, err, "claim validation err")
+			return
+		}
 		role, ok := claims["role"].(string)
 		if !ok {
 			c.JSON(http.StatusAccepted, gin.H{
@@ -334,6 +417,21 @@ func StartServer(db *mongo.Client) {
 	{
 		attendance := r.Group("/attendance", Auth())
 		attendance.POST("/start", TeacherRoleAuth(), ClassBodyBasedAuth(db), startAttendance(db))
+	}
+
+	hub := &Hub{
+		Clients:    make(map[*Client]bool),
+		broadcast:  make(chan *Message),
+		register:   make(chan *Client),
+		unregister: make(chan *Client),
+		db:         db,
+	}
+
+	go hub.Run()
+
+	{
+		ws := r.Group("/ws")
+		ws.GET("/", QueryParamsAuth(), handleWebsocket(db, hub))
 	}
 
 	r.Run()

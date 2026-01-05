@@ -22,3 +22,11 @@ func InternalServerError(c *gin.Context, err error, message ...string) {
 	c.Abort()
 	PrintError(err, message...)
 }
+
+func AuthError(c *gin.Context, err error, message ...string) {
+	c.JSON(http.StatusOK, gin.H{
+		"eror": "auth error",
+	})
+	c.Abort()
+	PrintError(err, message...)
+}
