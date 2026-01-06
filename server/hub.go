@@ -11,13 +11,15 @@ import (
 type Client struct {
 	hub  *Hub
 	conn *websocket.Conn
-	send chan WsReq
+	send chan WsEvent
 	id   string
+	role string
 }
 
 type Message struct {
 	ClientID string
-	Text     WsReq
+	Type     string
+	Text     WsEvent
 }
 
 type Hub struct {
@@ -42,11 +44,7 @@ func (h *Hub) Run() {
 				delete(h.Clients, client)
 			}
 		case msg := <-h.broadcast:
-			fmt.Println("mongo db call")
-			fmt.Println("broadcast this to everyone")
-			fmt.Println(h.Clients)
 			for client, connected := range h.Clients {
-				fmt.Println(client.id)
 				if connected {
 					client.send <- msg.Text
 				}

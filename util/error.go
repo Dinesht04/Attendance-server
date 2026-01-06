@@ -30,3 +30,12 @@ func AuthError(c *gin.Context, err error, message ...string) {
 	c.Abort()
 	PrintError(err, message...)
 }
+
+// func wsError(msg ...string) *server.WsReq {
+// 	err := msg[0]
+
+// 	return &server.WsReq{
+// 		Event: "Event error",
+// 		Error: &err,
+// 	}
+// }

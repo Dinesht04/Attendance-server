@@ -388,6 +388,8 @@ var ActiveSession data.Session
 func StartServer(db *mongo.Client) {
 	r := gin.Default()
 
+	ActiveSession.AttendanceStatus = make(data.AttendanceStatus)
+
 	r.GET("/ping", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{
 			"status": "ok",

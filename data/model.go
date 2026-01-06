@@ -1,6 +1,8 @@
 package data
 
 import (
+	"sync"
+
 	"go.mongodb.org/mongo-driver/v2/bson"
 )
 
@@ -19,12 +21,13 @@ type Class struct {
 	StudentIDs []bson.ObjectID `json:"student_ids" bson:"student_ids"`
 }
 
-type AttendanceStatus map[bson.ObjectID]string
+type AttendanceStatus map[string]string
 
 //validate Role -> teacher | student
 //validate Status -> present | absent
 
 type Session struct {
+	sync.Mutex
 	ClassID          bson.ObjectID
 	StartedAt        string
 	AttendanceStatus AttendanceStatus
@@ -32,8 +35,8 @@ type Session struct {
 
 type Attendance struct {
 	ID        bson.ObjectID `json:"_id" bson:"_id"`
-	ClassName string        `json:"className"`
-	StudentID string        `json:"studentId"`
+	ClassID   bson.ObjectID `json:"classId"`
+	StudentID bson.ObjectID `json:"studentId"`
 	Status    string        `json:"status"`
 }
 
