@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 
 	"github.com/dinesht04/ws-attendance/data"
@@ -23,7 +24,7 @@ func CreateClass(db *mongo.Client) gin.HandlerFunc {
 
 		err := c.ShouldBind(&ReqBody)
 		if err != nil {
-			c.JSON(http.StatusOK, gin.H{
+			c.JSON(400, gin.H{
 				"success": false,
 				"error":   "Invalid request schema",
 			})
@@ -34,9 +35,9 @@ func CreateClass(db *mongo.Client) gin.HandlerFunc {
 
 		userId, err := bson.ObjectIDFromHex(c.GetString("userId"))
 		if err != nil {
-			c.JSON(http.StatusOK, gin.H{
+			c.JSON(401, gin.H{
 				"success": false,
-				"error":   "Internal Server Error",
+				"error":   "Unauthorized, token missing or invalid",
 			})
 			c.Abort()
 			util.PrintError(err, "bson from hex err")
@@ -53,7 +54,7 @@ func CreateClass(db *mongo.Client) gin.HandlerFunc {
 
 		res, err := db.Database("attendance").Collection("class").InsertOne(context.Background(), &NewClass)
 		if err != nil {
-			c.JSON(http.StatusOK, gin.H{
+			c.JSON(500, gin.H{
 				"success": false,
 				"error":   "Internal Server Error",
 			})
@@ -61,13 +62,15 @@ func CreateClass(db *mongo.Client) gin.HandlerFunc {
 			util.PrintError(err, "class collection insertion err")
 			return
 		}
-		c.JSON(http.StatusOK, gin.H{
-			"success": "true",
+		emptyArray := make([]string, 0)
+
+		c.JSON(201, gin.H{
+			"success": true,
 			"data": gin.H{
 				"_id":        res.InsertedID,
 				"className":  NewClass.ClassName,
 				"teacherId":  userId,
-				"studentIds": gin.H{},
+				"studentIds": emptyArray,
 			},
 		})
 	}
@@ -75,7 +78,7 @@ func CreateClass(db *mongo.Client) gin.HandlerFunc {
 }
 
 type AddStudentRequest struct {
-	StudentId string `json:"studentId"`
+	StudentId string `json:"studentId" binding:"required"`
 }
 
 func AddStudent(db *mongo.Client) gin.HandlerFunc {
@@ -85,7 +88,7 @@ func AddStudent(db *mongo.Client) gin.HandlerFunc {
 
 		err := c.ShouldBind(&ReqBody)
 		if err != nil {
-			c.JSON(http.StatusOK, gin.H{
+			c.JSON(400, gin.H{
 				"success": false,
 				"error":   "Invalid request schema",
 			})
@@ -97,11 +100,13 @@ func AddStudent(db *mongo.Client) gin.HandlerFunc {
 		collection := db.Database("attendance").Collection("class")
 
 		id, _ := bson.ObjectIDFromHex(c.Param("id"))
+		fmt.Println(id)
+
 		filter := bson.M{"_id": id}
 		result := &data.Class{}
 		err = collection.FindOne(context.Background(), filter).Decode(&result)
 		if err != nil {
-			c.JSON(http.StatusOK, gin.H{
+			c.JSON(404, gin.H{
 				"success": false,
 				"error":   "Class not found",
 			})
@@ -111,7 +116,7 @@ func AddStudent(db *mongo.Client) gin.HandlerFunc {
 		}
 
 		if result.TeacherID.Hex() != c.GetString("userId") {
-			c.JSON(http.StatusOK, gin.H{
+			c.JSON(403, gin.H{
 				"success": false,
 				"error":   "Forbidden, not class teacher",
 			})
@@ -119,7 +124,49 @@ func AddStudent(db *mongo.Client) gin.HandlerFunc {
 			return
 		}
 
-		studentId, _ := bson.ObjectIDFromHex(ReqBody.StudentId)
+		studentId, err := bson.ObjectIDFromHex(ReqBody.StudentId)
+		if err != nil {
+			c.JSON(400, gin.H{
+				"success": false,
+				"error":   "Invalid request schema",
+			})
+			c.Abort()
+			util.PrintError(err, "invalid studentId")
+		}
+
+		studentFilter := bson.M{
+			"_id": studentId,
+		}
+
+		var student data.User
+
+		err = db.Database("attendance").Collection("users").FindOne(context.Background(), studentFilter).Decode(&student)
+		if err != nil {
+			if err == mongo.ErrNoDocuments {
+				c.JSON(404, gin.H{
+					"success": false,
+					"error":   "Student not found",
+				})
+				util.PrintError(err, "Student finding err")
+				c.Abort()
+				return
+			}
+			c.Abort()
+			util.PrintError(err, "Student finding err")
+			return
+		}
+
+		for _, v := range result.StudentIDs {
+			if v == studentId {
+				c.JSON(http.StatusOK, gin.H{
+					"success": true,
+					"data":    result,
+				})
+				util.PrintError(err, "Student already exists")
+				c.Abort()
+				return
+			}
+		}
 
 		update := bson.M{
 			"$push": bson.M{
@@ -127,16 +174,20 @@ func AddStudent(db *mongo.Client) gin.HandlerFunc {
 			},
 		}
 
-		var updatedClass bson.M
+		var updatedClass data.Class
 		err = collection.FindOneAndUpdate(context.Background(), filter, update, options.FindOneAndUpdate().SetReturnDocument(options.After)).Decode(&updatedClass)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{
+			c.JSON(400, gin.H{
 				"success": false,
-				"error":   "Internal server error",
+				"error":   "Invalid request schema",
 			})
+			util.PrintError(err, "Add student db update err")
 			return
 		}
-		c.JSON(http.StatusOK, updatedClass)
+		c.JSON(http.StatusOK, gin.H{
+			"success": true,
+			"data":    updatedClass,
+		})
 
 	}
 
@@ -156,7 +207,7 @@ func GetClass(db *mongo.Client) gin.HandlerFunc {
 		cur, err := db.Database("attendance").Collection("users").Find(context.Background(), filter)
 
 		if err != nil {
-			c.JSON(http.StatusOK, gin.H{
+			c.JSON(404, gin.H{
 				"success": false,
 				"error":   "Class not found",
 			})
@@ -167,9 +218,9 @@ func GetClass(db *mongo.Client) gin.HandlerFunc {
 
 		Students := []data.User{}
 		if err := cur.All(context.Background(), &Students); err != nil {
-			c.JSON(http.StatusOK, gin.H{
+			c.JSON(404, gin.H{
 				"success": false,
-				"error":   "Internal Server Error",
+				"error":   "Class not found",
 			})
 			c.Abort()
 			util.PrintError(err, "cursor iteration err")
@@ -181,9 +232,9 @@ func GetClass(db *mongo.Client) gin.HandlerFunc {
 
 		type Response struct {
 			ID        string                  `json:"_id"`
-			ClassName string                  `json:"classname"`
-			TeacherID string                  `json:"teacher_id" `
-			Students  []*data.StudentResponse `json:"studens" `
+			ClassName string                  `json:"className"`
+			TeacherID string                  `json:"teacherId" `
+			Students  []*data.StudentResponse `json:"students" `
 		}
 
 		res := &Response{
@@ -201,7 +252,7 @@ func GetClass(db *mongo.Client) gin.HandlerFunc {
 		}
 
 		c.JSON(http.StatusOK, gin.H{
-			"success": "true",
+			"success": true,
 			"data":    res,
 		})
 

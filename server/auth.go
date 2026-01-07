@@ -26,21 +26,23 @@ func HandleSignup(db *mongo.Client) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		reqBody := SignUpRequest{}
 		if err := c.ShouldBind(&reqBody); err != nil {
-			c.JSON(http.StatusOK, gin.H{
+			c.JSON(400, gin.H{
 				"success": false,
 				"error":   "Invalid request schema",
 			})
 			util.PrintError(err, "Validaton and Binding err")
+			c.Abort()
 			return
 		}
 
 		hashedPass, err := bcrypt.GenerateFromPassword([]byte(reqBody.Password), 5)
 		if err != nil {
-			c.JSON(http.StatusOK, gin.H{
+			c.JSON(400, gin.H{
 				"success": false,
-				"error":   "Internal server error",
+				"error":   "Invalid request schema",
 			})
 			util.PrintError(err, "Password Hashing error")
+			c.Abort()
 			return
 		}
 
@@ -57,10 +59,11 @@ func HandleSignup(db *mongo.Client) gin.HandlerFunc {
 
 		err = collection.FindOne(context.Background(), filter).Decode(&User)
 		if err == nil {
-			c.JSON(http.StatusOK, gin.H{
+			c.JSON(400, gin.H{
 				"success": false,
 				"error":   "Email already exists",
 			})
+			c.Abort()
 			return
 		}
 
@@ -71,16 +74,17 @@ func HandleSignup(db *mongo.Client) gin.HandlerFunc {
 			"role":     reqBody.Role,
 		})
 		if err != nil {
-			c.JSON(http.StatusOK, gin.H{
+			c.JSON(400, gin.H{
 				"success": false,
-				"error":   "Internal Server Error",
+				"error":   "Invalid request schema",
 			})
 			util.PrintError(err, "DB insertion err")
+			c.Abort()
 			return
 		}
 
-		c.JSON(http.StatusOK, gin.H{
-			"success": false,
+		c.JSON(201, gin.H{
+			"success": true,
 			"data": gin.H{
 				"_id":   res.InsertedID,
 				"name":  reqBody.Name,
@@ -101,11 +105,12 @@ func HandleLogin(db *mongo.Client) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		reqBody := LoginRequest{}
 		if err := c.ShouldBind(&reqBody); err != nil {
-			c.JSON(http.StatusOK, gin.H{
+			c.JSON(400, gin.H{
 				"success": false,
 				"error":   "Invalid request schema",
 			})
 			util.PrintError(err, "Validaton and Binding err")
+			c.Abort()
 			return
 		}
 
@@ -116,20 +121,22 @@ func HandleLogin(db *mongo.Client) gin.HandlerFunc {
 
 		err := collection.FindOne(context.Background(), filter).Decode(&User)
 		if err != nil {
-			c.JSON(http.StatusOK, gin.H{
+			c.JSON(400, gin.H{
 				"success": false,
-				"error":   "User not found",
+				"error":   "Invalid email or password",
 			})
 			util.PrintError(err, "Searching for user err")
+			c.Abort()
 			return
 		}
 
 		err = bcrypt.CompareHashAndPassword([]byte(User.Password), []byte(reqBody.Password))
 		if err != nil {
-			c.JSON(http.StatusOK, gin.H{
+			c.JSON(400, gin.H{
 				"success": false,
 				"error":   "Invalid email or password",
 			})
+			c.Abort()
 			return
 		}
 
@@ -146,6 +153,7 @@ func HandleLogin(db *mongo.Client) gin.HandlerFunc {
 				"error":   "Internal Server Error",
 			})
 			util.PrintError(err, "SIgning jwt err")
+			c.Abort()
 		}
 
 		c.JSON(http.StatusOK, gin.H{
@@ -169,7 +177,7 @@ func HandleMe(db *mongo.Client) gin.HandlerFunc {
 
 		authHeader := c.GetHeader("Authorization")
 		if authHeader == "" {
-			c.JSON(http.StatusUnauthorized, gin.H{
+			c.JSON(401, gin.H{
 				"success": false,
 				"error":   "Unauthorized, token missing or invalid",
 			})
@@ -183,7 +191,7 @@ func HandleMe(db *mongo.Client) gin.HandlerFunc {
 			return []byte(secret), nil
 		}, jwt.WithValidMethods([]string{jwt.SigningMethodHS256.Alg()}))
 		if err != nil {
-			c.JSON(http.StatusOK, gin.H{
+			c.JSON(401, gin.H{
 				"success": false,
 				"error":   "Unauthorized, token missing or invalid",
 			})
@@ -194,7 +202,7 @@ func HandleMe(db *mongo.Client) gin.HandlerFunc {
 
 		claims, ok := token.Claims.(jwt.MapClaims)
 		if !ok {
-			c.JSON(http.StatusOK, gin.H{
+			c.JSON(401, gin.H{
 				"success": false,
 				"error":   "Unauthorized, token missing or invalid",
 			})
@@ -205,7 +213,7 @@ func HandleMe(db *mongo.Client) gin.HandlerFunc {
 
 		userId, ok := claims["userId"].(string)
 		if !ok {
-			c.JSON(http.StatusBadRequest, gin.H{
+			c.JSON(401, gin.H{
 				"success": false,
 				"error":   "Unauthorized, token missing or invalid",
 			})
@@ -223,7 +231,7 @@ func HandleMe(db *mongo.Client) gin.HandlerFunc {
 
 		err = collection.FindOne(context.Background(), filter).Decode(&User)
 		if err != nil {
-			c.JSON(http.StatusOK, gin.H{
+			c.JSON(404, gin.H{
 				"success": false,
 				"error":   "User not found",
 			})
@@ -232,14 +240,28 @@ func HandleMe(db *mongo.Client) gin.HandlerFunc {
 			return
 		}
 
-		c.JSON(http.StatusOK, gin.H{
-			"success": true,
-			"data": gin.H{
-				"_id":   User.ID,
-				"name":  User.Name,
-				"email": User.Email,
-				"role":  User.Role,
-			},
+		type Datares struct {
+			ID    string `json:"_id"`
+			Name  string `json:"name"`
+			Email string `json:"email"`
+			Role  string `json:"role"`
+		}
+
+		type MeRes struct {
+			Success bool    `json:"success"`
+			Res     Datares `json:"data"`
+		}
+
+		res := Datares{
+			ID:    User.ID.Hex(),
+			Name:  User.Name,
+			Email: User.Email,
+			Role:  User.Role,
+		}
+
+		c.JSON(http.StatusOK, MeRes{
+			Success: true,
+			Res:     res,
 		})
 	}
 

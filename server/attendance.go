@@ -26,11 +26,12 @@ func getMyAttendance(db *mongo.Client) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		id, err := bson.ObjectIDFromHex(c.GetString("userId"))
 		if err != nil {
-			c.JSON(http.StatusOK, gin.H{
+			c.JSON(401, gin.H{
 				"success": false,
-				"error":   "Internal Server Error",
+				"error":   "Unauthorized, token missing or invalid",
 			})
 			util.InternalServerError(c, err, "object id from hex err")
+			c.Abort()
 			return
 		}
 
@@ -53,10 +54,11 @@ func getMyAttendance(db *mongo.Client) gin.HandlerFunc {
 				c.Abort()
 				return
 			}
-			c.JSON(http.StatusOK, gin.H{
+			c.JSON(400, gin.H{
 				"success": false,
-				"error":   "Internal Server Error",
+				"error":   "Invalid request schema",
 			})
+			c.Abort()
 			util.InternalServerError(c, err, "db search err")
 			return
 		}
@@ -68,7 +70,6 @@ func getMyAttendance(db *mongo.Client) gin.HandlerFunc {
 				Status:  &attendance.Status,
 			},
 		})
-
 	}
 }
 
@@ -76,11 +77,12 @@ func startAttendance(db *mongo.Client) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		class, exists := c.Get("classId")
 		if !exists {
-			c.JSON(http.StatusOK, gin.H{
+			c.JSON(400, gin.H{
 				"success": false,
-				"error":   "Internal Server Error",
+				"error":   "Invalid request schema",
 			})
 			util.InternalServerError(c, fmt.Errorf("class id doesnt exist"))
+			c.Abort()
 			return
 		}
 		classId := class.(bson.ObjectID)

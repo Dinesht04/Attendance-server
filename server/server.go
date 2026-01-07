@@ -61,8 +61,9 @@ func Auth() gin.HandlerFunc {
 
 		header := c.GetHeader("Authorization")
 		if header == "" {
-			c.JSON(http.StatusAccepted, gin.H{
-				"status": "token empty",
+			c.JSON(401, gin.H{
+				"success": false,
+				"error":   "Unauthorized, token missing or invalid",
 			})
 			c.Abort()
 			return
@@ -72,8 +73,9 @@ func Auth() gin.HandlerFunc {
 			return []byte(secret), nil
 		}, jwt.WithValidMethods([]string{jwt.SigningMethodHS256.Alg()}))
 		if err != nil {
-			c.JSON(http.StatusAccepted, gin.H{
-				"status": "error while parsing, unable to authenticate",
+			c.JSON(401, gin.H{
+				"success": false,
+				"error":   "Unauthorized, token missing or invalid",
 			})
 			c.Abort()
 			return
@@ -81,8 +83,9 @@ func Auth() gin.HandlerFunc {
 
 		claims, ok := token.Claims.(jwt.MapClaims)
 		if !ok {
-			c.JSON(http.StatusAccepted, gin.H{
-				"status": "error while claim validation",
+			c.JSON(401, gin.H{
+				"success": false,
+				"error":   "Unauthorized, token missing or invalid",
 			})
 			c.Abort()
 			return
@@ -90,16 +93,18 @@ func Auth() gin.HandlerFunc {
 
 		role, ok := claims["role"].(string)
 		if !ok {
-			c.JSON(http.StatusAccepted, gin.H{
-				"status": "error while value validation",
+			c.JSON(401, gin.H{
+				"success": false,
+				"error":   "Unauthorized, token missing or invalid",
 			})
 			c.Abort()
 			return
 		}
 		userId, ok := claims["userId"].(string)
 		if !ok {
-			c.JSON(http.StatusAccepted, gin.H{
-				"status": "error while value validation",
+			c.JSON(401, gin.H{
+				"success": false,
+				"error":   "Unauthorized, token missing or invalid",
 			})
 			c.Abort()
 			return
@@ -110,8 +115,9 @@ func Auth() gin.HandlerFunc {
 			c.Set("userId", userId)
 			c.Next()
 		} else {
-			c.JSON(http.StatusAccepted, gin.H{
-				"status": "auth err who r u br",
+			c.JSON(401, gin.H{
+				"success": false,
+				"error":   "Unauthorized, token missing or invalid",
 			})
 			c.Abort()
 			return
@@ -132,27 +138,37 @@ func QueryParamsAuth() gin.HandlerFunc {
 			return []byte(secret), nil
 		}, jwt.WithValidMethods([]string{jwt.SigningMethodHS256.Alg()}))
 		if err != nil {
-			util.InternalServerError(c, err, "token parse err")
+			c.JSON(401, gin.H{
+				"success": false,
+				"error":   "Unauthorized, token missing or invalid",
+			})
+			c.Abort()
 			return
 		}
 
 		claims, ok := token.Claims.(jwt.MapClaims)
 		if !ok {
-			util.InternalServerError(c, err, "claim validation err")
+			c.JSON(401, gin.H{
+				"success": false,
+				"error":   "Unauthorized, token missing or invalid",
+			})
+			c.Abort()
 			return
 		}
 		role, ok := claims["role"].(string)
 		if !ok {
-			c.JSON(http.StatusAccepted, gin.H{
-				"status": "error while value validation",
+			c.JSON(401, gin.H{
+				"success": false,
+				"error":   "Unauthorized, token missing or invalid",
 			})
 			c.Abort()
 			return
 		}
 		userId, ok := claims["userId"].(string)
 		if !ok {
-			c.JSON(http.StatusAccepted, gin.H{
-				"status": "error while value validation",
+			c.JSON(401, gin.H{
+				"success": false,
+				"error":   "Unauthorized, token missing or invalid",
 			})
 			c.Abort()
 			return
@@ -163,8 +179,9 @@ func QueryParamsAuth() gin.HandlerFunc {
 			c.Set("userId", userId)
 			c.Next()
 		} else {
-			c.JSON(http.StatusAccepted, gin.H{
-				"status": "auth err who r u br",
+			c.JSON(401, gin.H{
+				"success": false,
+				"error":   "Unauthorized, token missing or invalid",
 			})
 			c.Abort()
 			return
@@ -180,9 +197,11 @@ func TeacherRoleAuth() gin.HandlerFunc {
 			c.Next()
 		} else {
 			c.Abort()
-			c.JSON(http.StatusOK, gin.H{
-				"auth error": "you are not a teacher",
+			c.JSON(403, gin.H{
+				"success": false,
+				"error":   "Forbidden, teacher access required",
 			})
+			c.Abort()
 			return
 		}
 	}
@@ -196,9 +215,11 @@ func StudentRoleAuth() gin.HandlerFunc {
 			c.Next()
 		} else {
 			c.Abort()
-			c.JSON(http.StatusOK, gin.H{
-				"auth error": "you are not a student? why are you as a teacher accessing it maaan",
+			c.JSON(403, gin.H{
+				"success": false,
+				"error":   "Forbidden, teacher access required",
 			})
+			c.Abort()
 			return
 		}
 	}
@@ -209,8 +230,9 @@ func ClassParamBasedAuth(db *mongo.Client) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		classId, err := bson.ObjectIDFromHex(c.Param("id"))
 		if err != nil {
-			c.JSON(http.StatusOK, gin.H{
-				"eror": "internal server error",
+			c.JSON(401, gin.H{
+				"success": false,
+				"error":   "Unauthorized, token missing or invalid",
 			})
 			c.Abort()
 			util.PrintError(err, "object id err")
@@ -225,8 +247,9 @@ func ClassParamBasedAuth(db *mongo.Client) gin.HandlerFunc {
 
 		if err != nil {
 
-			c.JSON(http.StatusOK, gin.H{
-				"eror": "internal server error",
+			c.JSON(404, gin.H{
+				"success": false,
+				"error":   "Class not found",
 			})
 			c.Abort()
 			util.PrintError(err, "db finding err")
@@ -240,8 +263,9 @@ func ClassParamBasedAuth(db *mongo.Client) gin.HandlerFunc {
 
 		userId, err := bson.ObjectIDFromHex(c.GetString("userId"))
 		if err != nil {
-			c.JSON(http.StatusOK, gin.H{
-				"eror": "internal server error",
+			c.JSON(401, gin.H{
+				"success": false,
+				"error":   "Unauthorized, token missing or invalid",
 			})
 			c.Abort()
 			util.PrintError(err, "object id err")
@@ -251,8 +275,9 @@ func ClassParamBasedAuth(db *mongo.Client) gin.HandlerFunc {
 		if c.GetString("role") == "teacher" {
 
 			if userId.Hex() != Class.TeacherID.Hex() {
-				c.JSON(http.StatusOK, gin.H{
-					"auth err": "not your class bru",
+				c.JSON(403, gin.H{
+					"success": false,
+					"error":   "Forbidden, not class teacher",
 				})
 				c.Abort()
 				return
@@ -267,8 +292,9 @@ func ClassParamBasedAuth(db *mongo.Client) gin.HandlerFunc {
 				}
 			}
 			if verified == false {
-				c.JSON(http.StatusOK, gin.H{
-					"auth err": "not your class bru",
+				c.JSON(403, gin.H{
+					"success": false,
+					"error":   "Forbidden, not class teacher",
 				})
 				c.Abort()
 				return
@@ -287,14 +313,20 @@ func ClassBodyBasedAuth(db *mongo.Client) gin.HandlerFunc {
 
 		req := StartReq{}
 		if err := c.ShouldBind(&req); err != nil {
-			util.InternalServerError(c, err, "binding err")
+			c.JSON(400, gin.H{
+				"success": false,
+				"error":   "Invalid request schema",
+			})
+			util.PrintError(err, "req bind err")
+			c.Abort()
 			return
 		}
 
 		classId, err := bson.ObjectIDFromHex(req.ClassID)
 		if err != nil {
-			c.JSON(http.StatusOK, gin.H{
-				"eror": "internal server error",
+			c.JSON(401, gin.H{
+				"success": false,
+				"error":   "Unauthorized, token missing or invalid",
 			})
 			c.Abort()
 			util.PrintError(err, "object id err")
@@ -309,8 +341,9 @@ func ClassBodyBasedAuth(db *mongo.Client) gin.HandlerFunc {
 
 		if err != nil {
 
-			c.JSON(http.StatusOK, gin.H{
-				"eror": "internal server error",
+			c.JSON(404, gin.H{
+				"success": false,
+				"error":   "Class not found",
 			})
 			c.Abort()
 			util.PrintError(err, "db finding err")
@@ -324,8 +357,9 @@ func ClassBodyBasedAuth(db *mongo.Client) gin.HandlerFunc {
 
 		userId, err := bson.ObjectIDFromHex(c.GetString("userId"))
 		if err != nil {
-			c.JSON(http.StatusOK, gin.H{
-				"eror": "internal server error",
+			c.JSON(401, gin.H{
+				"success": false,
+				"error":   "Unauthorized, token missing or invalid",
 			})
 			c.Abort()
 			util.PrintError(err, "object id err")
@@ -335,8 +369,9 @@ func ClassBodyBasedAuth(db *mongo.Client) gin.HandlerFunc {
 		if c.GetString("role") == "teacher" {
 
 			if userId.Hex() != Class.TeacherID.Hex() {
-				c.JSON(http.StatusOK, gin.H{
-					"auth err": "not your class bru",
+				c.JSON(403, gin.H{
+					"success": false,
+					"error":   "Forbidden, not class teacher",
 				})
 				c.Abort()
 				return
@@ -351,8 +386,9 @@ func ClassBodyBasedAuth(db *mongo.Client) gin.HandlerFunc {
 				}
 			}
 			if verified == false {
-				c.JSON(http.StatusOK, gin.H{
-					"auth err": "not your class bru",
+				c.JSON(403, gin.H{
+					"success": false,
+					"error":   "Forbidden, not class teacher",
 				})
 				c.Abort()
 				return

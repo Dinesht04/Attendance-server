@@ -17,8 +17,8 @@ type User struct {
 type Class struct {
 	ID         bson.ObjectID   `json:"_id" bson:"_id"`
 	ClassName  string          `json:"classname"`
-	TeacherID  bson.ObjectID   `json:"teacher_id" bson:"teacher_id"`
-	StudentIDs []bson.ObjectID `json:"student_ids" bson:"student_ids"`
+	TeacherID  bson.ObjectID   `json:"teacherId" bson:"teacher_id"`
+	StudentIDs []bson.ObjectID `json:"studentIds" bson:"student_ids"`
 }
 
 type AttendanceStatus map[string]string
