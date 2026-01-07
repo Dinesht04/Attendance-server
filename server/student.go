@@ -18,11 +18,19 @@ func getStudents(db *mongo.Client) gin.HandlerFunc {
 
 		cur, err := db.Database("attendance").Collection("users").Find(c, filter)
 		if err != nil {
+			c.JSON(http.StatusOK, gin.H{
+				"success": false,
+				"error":   "Students not found",
+			})
 			util.InternalServerError(c, err, "collection finding err")
 			return
 		}
 		Students := []data.Student{}
 		if err := cur.All(c, &Students); err != nil {
+			c.JSON(http.StatusOK, gin.H{
+				"success": false,
+				"error":   "Internal Server Error",
+			})
 			util.InternalServerError(c, err, "cur iteration err")
 			return
 		}

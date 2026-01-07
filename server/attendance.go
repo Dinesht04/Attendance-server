@@ -26,6 +26,10 @@ func getMyAttendance(db *mongo.Client) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		id, err := bson.ObjectIDFromHex(c.GetString("userId"))
 		if err != nil {
+			c.JSON(http.StatusOK, gin.H{
+				"success": false,
+				"error":   "Internal Server Error",
+			})
 			util.InternalServerError(c, err, "object id from hex err")
 			return
 		}
@@ -49,7 +53,10 @@ func getMyAttendance(db *mongo.Client) gin.HandlerFunc {
 				c.Abort()
 				return
 			}
-
+			c.JSON(http.StatusOK, gin.H{
+				"success": false,
+				"error":   "Internal Server Error",
+			})
 			util.InternalServerError(c, err, "db search err")
 			return
 		}
@@ -69,7 +76,12 @@ func startAttendance(db *mongo.Client) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		class, exists := c.Get("classId")
 		if !exists {
+			c.JSON(http.StatusOK, gin.H{
+				"success": false,
+				"error":   "Internal Server Error",
+			})
 			util.InternalServerError(c, fmt.Errorf("class id doesnt exist"))
+			return
 		}
 		classId := class.(bson.ObjectID)
 

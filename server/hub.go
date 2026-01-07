@@ -1,7 +1,6 @@
 package server
 
 import (
-	"fmt"
 	"sync"
 
 	"github.com/gorilla/websocket"
@@ -36,8 +35,6 @@ func (h *Hub) Run() {
 		select {
 		case client := <-h.register:
 			h.Clients[client] = true
-			fmt.Println("client registered: ", client.id)
-
 		case client := <-h.unregister:
 			if _, ok := h.Clients[client]; ok {
 				close(client.send)

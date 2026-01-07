@@ -24,27 +24,19 @@ func CreateClass(db *mongo.Client) gin.HandlerFunc {
 		err := c.ShouldBind(&ReqBody)
 		if err != nil {
 			c.JSON(http.StatusOK, gin.H{
-				"error": "Invalid Body",
+				"success": false,
+				"error":   "Invalid request schema",
 			})
 			c.Abort()
 			util.PrintError(err, "validation err")
 			return
 		}
 
-		// if ActiveSession.ClassID.IsZero() == false {
-		// 	c.JSON(http.StatusOK, gin.H{
-		// 		"error": "Class already in session",
-		// 	})
-		// 	c.Abort()
-		// 	return
-		// }
-
-		// ActiveSession.ClassID = bson.NewObjectID()
-		// ActiveSession.StartedAt = time.Now().Local().String()
 		userId, err := bson.ObjectIDFromHex(c.GetString("userId"))
 		if err != nil {
 			c.JSON(http.StatusOK, gin.H{
-				"error": "internal server error",
+				"success": false,
+				"error":   "Internal Server Error",
 			})
 			c.Abort()
 			util.PrintError(err, "bson from hex err")
@@ -62,7 +54,8 @@ func CreateClass(db *mongo.Client) gin.HandlerFunc {
 		res, err := db.Database("attendance").Collection("class").InsertOne(context.Background(), &NewClass)
 		if err != nil {
 			c.JSON(http.StatusOK, gin.H{
-				"error": "internal server error",
+				"success": false,
+				"error":   "Internal Server Error",
 			})
 			c.Abort()
 			util.PrintError(err, "class collection insertion err")
@@ -93,7 +86,8 @@ func AddStudent(db *mongo.Client) gin.HandlerFunc {
 		err := c.ShouldBind(&ReqBody)
 		if err != nil {
 			c.JSON(http.StatusOK, gin.H{
-				"error": "Invalid Body",
+				"success": false,
+				"error":   "Invalid request schema",
 			})
 			c.Abort()
 			util.PrintError(err, "validation err")
@@ -108,7 +102,8 @@ func AddStudent(db *mongo.Client) gin.HandlerFunc {
 		err = collection.FindOne(context.Background(), filter).Decode(&result)
 		if err != nil {
 			c.JSON(http.StatusOK, gin.H{
-				"error": "no such class",
+				"success": false,
+				"error":   "Class not found",
 			})
 			c.Abort()
 			util.PrintError(err, "no such class")
@@ -117,7 +112,8 @@ func AddStudent(db *mongo.Client) gin.HandlerFunc {
 
 		if result.TeacherID.Hex() != c.GetString("userId") {
 			c.JSON(http.StatusOK, gin.H{
-				"auth error": "not your class",
+				"success": false,
+				"error":   "Forbidden, not class teacher",
 			})
 			c.Abort()
 			return
@@ -134,9 +130,10 @@ func AddStudent(db *mongo.Client) gin.HandlerFunc {
 		var updatedClass bson.M
 		err = collection.FindOneAndUpdate(context.Background(), filter, update, options.FindOneAndUpdate().SetReturnDocument(options.After)).Decode(&updatedClass)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "update failed",
-				"err": err})
-
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"success": false,
+				"error":   "Internal server error",
+			})
 			return
 		}
 		c.JSON(http.StatusOK, updatedClass)
@@ -147,14 +144,6 @@ func AddStudent(db *mongo.Client) gin.HandlerFunc {
 
 func GetClass(db *mongo.Client) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		//step 1 auth
-		//extract class id from query params
-		//query the db for it
-		//check if id exist in teacher or student from the one in request
-		//#done in middleware
-
-		//step 2
-		//query the database for students which id are in the class
 
 		studentsIds, _ := c.Get("studentIds")
 
@@ -168,7 +157,8 @@ func GetClass(db *mongo.Client) gin.HandlerFunc {
 
 		if err != nil {
 			c.JSON(http.StatusOK, gin.H{
-				"eror": "internal server error",
+				"success": false,
+				"error":   "Class not found",
 			})
 			c.Abort()
 			util.PrintError(err, "db finding err")
@@ -178,14 +168,14 @@ func GetClass(db *mongo.Client) gin.HandlerFunc {
 		Students := []data.User{}
 		if err := cur.All(context.Background(), &Students); err != nil {
 			c.JSON(http.StatusOK, gin.H{
-				"eror": "internal server error",
+				"success": false,
+				"error":   "Internal Server Error",
 			})
 			c.Abort()
 			util.PrintError(err, "cursor iteration err")
 			return
 
 		}
-
 		//step 3
 		//format the response
 
