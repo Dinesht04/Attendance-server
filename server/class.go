@@ -180,10 +180,10 @@ func GetClass(db *mongo.Client) gin.HandlerFunc {
 		//format the response
 
 		type Response struct {
-			ID        string          `json:"_id"`
-			ClassName string          `json:"classname"`
-			TeacherID string          `json:"teacher_id" `
-			Students  []*data.Student `json:"studens" `
+			ID        string                  `json:"_id"`
+			ClassName string                  `json:"classname"`
+			TeacherID string                  `json:"teacher_id" `
+			Students  []*data.StudentResponse `json:"studens" `
 		}
 
 		res := &Response{
@@ -193,7 +193,7 @@ func GetClass(db *mongo.Client) gin.HandlerFunc {
 		}
 
 		for _, v := range Students {
-			res.Students = append(res.Students, &data.Student{
+			res.Students = append(res.Students, &data.StudentResponse{
 				ID:    v.ID.Hex(),
 				Name:  v.Name,
 				Email: v.Email,

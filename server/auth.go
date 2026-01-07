@@ -173,6 +173,7 @@ func HandleMe(db *mongo.Client) gin.HandlerFunc {
 				"success": false,
 				"error":   "Unauthorized, token missing or invalid",
 			})
+			c.Abort()
 			return
 		}
 
@@ -187,6 +188,8 @@ func HandleMe(db *mongo.Client) gin.HandlerFunc {
 				"error":   "Unauthorized, token missing or invalid",
 			})
 			util.PrintError(err, "validating jwt error")
+			c.Abort()
+			return
 		}
 
 		claims, ok := token.Claims.(jwt.MapClaims)
@@ -196,6 +199,7 @@ func HandleMe(db *mongo.Client) gin.HandlerFunc {
 				"error":   "Unauthorized, token missing or invalid",
 			})
 			util.PrintError(err, "extracting claims error")
+			c.Abort()
 			return
 		}
 
@@ -206,6 +210,7 @@ func HandleMe(db *mongo.Client) gin.HandlerFunc {
 				"error":   "Unauthorized, token missing or invalid",
 			})
 			util.PrintError(err, "Token is not string")
+			c.Abort()
 			return
 		}
 
@@ -223,6 +228,7 @@ func HandleMe(db *mongo.Client) gin.HandlerFunc {
 				"error":   "User not found",
 			})
 			util.PrintError(err, "Searching for user err")
+			c.Abort()
 			return
 		}
 

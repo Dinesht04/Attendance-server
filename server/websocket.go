@@ -120,33 +120,35 @@ func (c *Client) readPump(db *mongo.Client) {
 	}()
 
 	for {
-		mt, msg, err := c.conn.ReadMessage()
+		_, msg, err := c.conn.ReadMessage()
 		if err != nil {
 			fmt.Println(err, "reading msg error")
 		}
 
 		valid := json.Valid(msg)
-
+		fmt.Println(string(msg))
 		if !valid {
 			fmt.Println("json is valid: ", valid)
-			err = c.conn.WriteMessage(mt, []byte("Invalid json"))
-			if err != nil {
-				fmt.Println(err, "message sending err invalid json")
-				break
+			errMsg := wsError{
+				Event: "ERROR",
+				Data: WsErrorData{
+					Message: "Invalid JSON",
+				},
 			}
+			c.send <- errMsg
 			continue
 		}
 		req := WsReq{}
 
 		err = json.Unmarshal(msg, &req)
 		if err != nil {
-			fmt.Println(err, "json unmarshalling err")
-
-			err = c.conn.WriteMessage(mt, []byte("Invalid json"))
-			if err != nil {
-				fmt.Println(err, "message sending err json umarshalling")
-				break
+			errMsg := wsError{
+				Event: "ERROR",
+				Data: WsErrorData{
+					Message: "Invalid JSON",
+				},
 			}
+			c.send <- errMsg
 
 			continue
 		}

@@ -41,7 +41,13 @@ type Attendance struct {
 }
 
 type Student struct {
-	ID    string `json:"_id"`
+	ID    bson.ObjectID `json:"_id" bson:"_id"`
+	Name  string        `json:"name"`
+	Email string        `json:"email" `
+}
+
+type StudentResponse struct {
+	ID    string `json:"_id" bson:"_id"`
 	Name  string `json:"name"`
 	Email string `json:"email" `
 }

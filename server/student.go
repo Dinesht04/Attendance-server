@@ -35,21 +35,21 @@ func getStudents(db *mongo.Client) gin.HandlerFunc {
 			return
 		}
 		type Response struct {
-			Success bool            `json:"success"`
-			Data    []*data.Student `json:"data"`
+			Success bool                    `json:"success"`
+			Data    []*data.StudentResponse `json:"data"`
 		}
 		res := &Response{
 			Success: true,
 		}
 
 		for _, v := range Students {
-			res.Data = append(res.Data, &data.Student{
-				ID:    v.ID,
+			id := v.ID.Hex()
+			res.Data = append(res.Data, &data.StudentResponse{
+				ID:    id,
 				Name:  v.Name,
 				Email: v.Email,
 			})
 		}
-
 		c.JSON(http.StatusOK, res)
 	}
 }

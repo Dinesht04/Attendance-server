@@ -1,5 +1,0 @@
-add global [] to store connected ws clients
-add handlers for each event
-beautify the response
-clean up code 
-post and x, tag kirat and hope for internship
