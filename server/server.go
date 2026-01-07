@@ -436,7 +436,7 @@ func StartServer(db *mongo.Client) {
 		auth := r.Group("/auth")
 		auth.POST("/signup", HandleSignup(db))
 		auth.POST("/login", HandleLogin(db))
-		auth.POST("/me", HandleMe(db))
+		auth.GET("/me", HandleMe(db))
 	}
 
 	{
