@@ -87,3 +87,5 @@ The server will start on `http://localhost:8080`.
 ---
 
 *Developed as a Backend Assignment.*
+
+Passed 49/75 test cases
